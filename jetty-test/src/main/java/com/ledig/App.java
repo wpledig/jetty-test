@@ -5,33 +5,23 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.PathResource;
 import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.servlet.ServletHandler;
 
-import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
 
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletHandler;
-
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.SdkClientException;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
+
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Message;
+import com.twilio.type.PhoneNumber;
 
 /**
  * Hello world!
@@ -43,24 +33,12 @@ public class App
     static String bucketName = "wledig-test-project-bucket";
     static AmazonS3 s3Client;
 
+    static final String ACCOUNT_SID = "AC4b0d28e299e1e1001568785f88aada49";
+    static final String AUTH_TOKEN = "auth_token_here";
+
     public static Server createServer(int port, Resource baseResource)
     {
         Server server = new Server(port);
-        /*
-        ResourceHandler resourceHandler = new ResourceHandler();
-
-        // Configure the ResourceHandler. Setting the resource base indicates where the files should be served out of.
-        // In this example it is the current directory but it can be configured to anything that the jvm has access to.
-        resourceHandler.setDirectoriesListed(true);
-        resourceHandler.setWelcomeFiles(new String[]{"index.html"});
-        resourceHandler.setBaseResource(baseResource);
-
-        // Add the ResourceHandler to the server.
-        HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[]{resourceHandler, new DefaultHandler()});
-        server.setHandler(handlers);
-        //server.setHandler(new MyHandler());
-        */
 
         ServletHandler handler = new ServletHandler();
         server.setHandler(handler);
@@ -69,12 +47,11 @@ public class App
         handler.addServletWithMapping(SendServlet.class, "/sendtext");
 
 
-         s3Client = AmazonS3ClientBuilder.standard()
+        s3Client = AmazonS3ClientBuilder.standard()
                 .withRegion(clientRegion)
                 .build();
 
-        //s3Client.putObject(bucketName, "str-obj", "This is my test object");
-
+        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
         return server;
     }
 
@@ -99,7 +76,7 @@ public class App
             response.setCharacterEncoding("utf-8");
             response.getWriter().println("<form action=\"/sendtext\">\n" +
                     "    <label for=\"phone\">Phone number:</label><br />\n" +
-                    "    <input type=\"text\" id=\"phone\" name=\"phone\" placeholder=\"XXX-XXX-XXXX\"><br />\n" +
+                    "    <input type=\"text\" id=\"phone\" name=\"phone\" placeholder=\"XXXXXXXXXX\"><br />\n" +
                     "    <label for=\"msg\">Text message:</label><br />\n" +
                     "    <input type=\"text\" id=\"msg\" name=\"msg\"> <br /><br />\n" +
                     "    <input type=\"submit\" value=\"Submit\">\n" +
@@ -135,6 +112,13 @@ public class App
                     "number: " + phoneNum + "\ntext: " + textMsg);
 
             // Send message with Twilio
+            Message message = Message
+                    .creator(new PhoneNumber("+1" + phoneNum), // to
+                            new PhoneNumber("+12058912621"), // from
+                            textMsg)
+                    .create();
+
+            System.out.println("Message sent: " + message.getSid());
         }
     }
 }
