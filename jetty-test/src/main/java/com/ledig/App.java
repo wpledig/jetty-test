@@ -3,9 +3,7 @@ package com.ledig;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -27,12 +25,24 @@ import javax.servlet.http.Part;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.SdkClientException;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+
 /**
  * Hello world!
  *
  */
 public class App 
 {
+    static Regions clientRegion = Regions.US_EAST_1;
+    static String bucketName = "wledig-test-project-bucket";
+    static AmazonS3 s3Client;
+
     public static Server createServer(int port, Resource baseResource)
     {
         Server server = new Server(port);
@@ -57,6 +67,13 @@ public class App
 
         handler.addServletWithMapping(FormServlet.class, "/*");
         handler.addServletWithMapping(SendServlet.class, "/sendtext");
+
+
+         s3Client = AmazonS3ClientBuilder.standard()
+                .withRegion(clientRegion)
+                .build();
+
+        //s3Client.putObject(bucketName, "str-obj", "This is my test object");
 
         return server;
     }
@@ -108,9 +125,16 @@ public class App
                 queryVals.put(splitParts[0], splitParts[1]);
             }
 
-            System.out.println("Number: " + queryVals.get("phone"));
-            System.out.println("Text: " + queryVals.get("msg"));
+            String phoneNum = queryVals.get("phone");
+            String textMsg = queryVals.get("msg");
+            System.out.println("Number: " + phoneNum);
+            System.out.println("Text: " + textMsg);
 
+            // Do S3 logging
+            s3Client.putObject(bucketName, "log (" + new Date() + ")",
+                    "number: " + phoneNum + "\ntext: " + textMsg);
+
+            // Send message with Twilio
         }
     }
 }
